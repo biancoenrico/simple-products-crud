@@ -10,5 +10,7 @@ Route::prefix('v1')->middleware('jwt')->group(function () {
         Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
         Route::get('{productId}', 'show')->name('show')->whereUuid('productId');
+        Route::put('{productId}', 'update')->name('update')->whereUuid('productId');
+        Route::delete('{productId}', 'destroy')->name('destroy')->whereUuid('productId');
     });
 });

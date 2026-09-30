@@ -16,4 +16,8 @@ interface ProductRepository
     public function findById(string $productId): ?Product;
 
     public function create(ProductDto $dto): Product;
+
+    public function update(Product $product, ProductDto $dto): Product;
+
+    public function delete(Product $product): void;
 }

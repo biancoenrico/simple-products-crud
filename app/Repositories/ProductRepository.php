@@ -33,4 +33,18 @@ class ProductRepository implements ProductRepositoryContract
     {
         return Product::query()->create($dto->toArray());
     }
+
+    #[Override]
+    public function update(Product $product, ProductDto $dto): Product
+    {
+        $product->update($dto->toArray());
+
+        return $product;
+    }
+
+    #[Override]
+    public function delete(Product $product): void
+    {
+        $product->delete();
+    }
 }

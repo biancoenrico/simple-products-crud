@@ -64,7 +64,7 @@ class JwtMiddlewareTest extends TestCase
             'source' => null,
         ];
 
-        $response = $this->withToken($this->validJwt($userData))->getJson(route('products.index'));
+        $response = $this->authenticated($userData)->getJson(route('products.index'));
 
         $response->assertOk();
         $this->assertSame($userData, config('user_data'));
@@ -74,7 +74,7 @@ class JwtMiddlewareTest extends TestCase
     {
         config(['jwt.public_key_path' => sys_get_temp_dir().'/missing-oauth-public.key']);
 
-        $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
+        $response = $this->authenticated()->getJson(route('products.index'));
 
         $response->assertInternalServerError()
             ->assertJsonPath('message', __('middleware.public_key_unavailable'));
@@ -86,7 +86,7 @@ class JwtMiddlewareTest extends TestCase
         file_put_contents($malformedKeyPath, 'not a pem key');
         config(['jwt.public_key_path' => $malformedKeyPath]);
 
-        $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
+        $response = $this->authenticated()->getJson(route('products.index'));
 
         unlink($malformedKeyPath);
         $response->assertInternalServerError()

@@ -23,7 +23,7 @@ class ProductIndexTest extends TestCase
             'updated_at' => Carbon::parse('2026-09-02 11:30:00'),
         ]);
 
-        $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
+        $response = $this->authenticated()->getJson(route('products.index'));
 
         $response->assertOk()
             ->assertJsonStructure(['data', 'links', 'meta'])
@@ -43,7 +43,7 @@ class ProductIndexTest extends TestCase
         $oldest = Product::factory()->create(['created_at' => now()->subDays(2)]);
         $newest = Product::factory()->create(['created_at' => now()]);
 
-        $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
+        $response = $this->authenticated()->getJson(route('products.index'));
 
         $response->assertOk()
             ->assertJsonPath('data.*.id', [$newest->id, $middle->id, $oldest->id]);
@@ -53,7 +53,7 @@ class ProductIndexTest extends TestCase
     {
         Product::factory()->count(16)->create();
 
-        $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
+        $response = $this->authenticated()->getJson(route('products.index'));
 
         $response->assertOk()
             ->assertJsonCount(15, 'data')
@@ -65,7 +65,7 @@ class ProductIndexTest extends TestCase
     {
         Product::factory()->count(3)->create();
 
-        $response = $this->withToken($this->validJwt())->getJson(route('products.index', ['per_page' => 2]));
+        $response = $this->authenticated()->getJson(route('products.index', ['per_page' => 2]));
 
         $response->assertOk()
             ->assertJsonCount(2, 'data')
@@ -88,16 +88,14 @@ class ProductIndexTest extends TestCase
     #[DataProvider('invalidPerPageValues')]
     public function test_index_rejects_invalid_per_page(mixed $perPage): void
     {
-        $response = $this->withToken($this->validJwt())->getJson(route('products.index', ['per_page' => $perPage]));
+        $response = $this->authenticated()->getJson(route('products.index', ['per_page' => $perPage]));
 
         $response->assertUnprocessable()->assertJsonValidationErrors('per_page');
     }
 
     public function test_index_accepts_per_page_bounds(): void
     {
-        $token = $this->validJwt();
-
-        $this->withToken($token)->getJson(route('products.index', ['per_page' => 1]))->assertOk();
-        $this->withToken($token)->getJson(route('products.index', ['per_page' => 100]))->assertOk();
+        $this->authenticated()->getJson(route('products.index', ['per_page' => 1]))->assertOk();
+        $this->authenticated()->getJson(route('products.index', ['per_page' => 100]))->assertOk();
     }
 }

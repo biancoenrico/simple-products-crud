@@ -29,6 +29,14 @@ trait InteractsWithJwt
     /**
      * @param  array<string, mixed>  $userData
      */
+    protected function authenticated(array $userData = []): static
+    {
+        return $this->withToken($this->validJwt($userData));
+    }
+
+    /**
+     * @param  array<string, mixed>  $userData
+     */
     protected function validJwt(array $userData = []): string
     {
         return $this->signJwt(['data' => base64_encode(json_encode($userData))]);

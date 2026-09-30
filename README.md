@@ -4,6 +4,19 @@ Microservizio operativo della piattaforma WEB-ATTIVO per l'anagrafica dei prodot
 
 Laravel 13 su PHP 8.3, struttura Controller → Service → Repository con dependency injection.
 
+## Provare con Docker
+
+L'immagine è pubblica, quindi si scarica senza credenziali:
+
+```bash
+docker pull ghcr.io/<owner>/msp-prodotto:latest
+docker run --rm -p 8000:80 ghcr.io/<owner>/msp-prodotto:latest
+```
+
+La pagina di prova è su `http://localhost:8000/demo/`, già autenticata, e chiama le API vere per la lista paginata, la creazione, il dettaglio, la modifica e la cancellazione. Di ogni risposta mostra metodo, URL, status e JSON. Il documento OpenAPI sta su `http://localhost:8000/docs/api-docs.json`.
+
+All'avvio il container prepara da solo `.env`, chiave dell'app e database SQLite, genera una coppia di chiavi RSA e firma un token valido un anno per la pagina. L'immagine non usa volumi, per cui i dati durano quanto il container e uno nuovo riparte con database vuoto e chiavi nuove.
+
 ## Avvio
 
 Servono PHP 8.3 con le estensioni `openssl` e `pdo_sqlite`, e Composer.
@@ -18,6 +31,15 @@ php artisan serve
 ```
 
 Il servizio risponde su `http://localhost:8000`. In sviluppo il database è SQLite; per usarne un altro si cambiano le variabili `DB_*` nel `.env`.
+
+### Con Docker compose
+
+```bash
+composer install
+docker compose up
+```
+
+Il compose costruisce l'immagine dal `Dockerfile` e monta il progetto in `/app`, con il `vendor` dell'host: le modifiche al codice e alla pagina di prova si vedono senza rifare la build. Il servizio risponde su `http://localhost:8000`, la pagina di prova su `/demo/`. Il setup d'avvio crea `.env`, database e chiavi solo se mancano e lascia com'è ciò che trova. A ogni avvio rigenera soltanto il token della pagina, in `public/demo/config.js`, che è escluso dal repository.
 
 ## La chiave pubblica di AG
 
@@ -78,5 +100,5 @@ Il perimetro concordato è un'anagrafica di prodotti con nome, descrizione e sta
 - le librerie WA-common e wa-PermissionChecker;
 - il service locale, RabbitMQ e gli eventi;
 - i filtri di ricerca sulla lista, `PATCH`, `x-extra_loads`, `x-notification_types` e le notifiche;
-- la registrazione in AG, il deploy e Docker;
+- la registrazione in AG e il deploy;
 - la traduzione dei messaggi di validazione, che restano quelli inglesi di Laravel.

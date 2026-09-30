@@ -27,28 +27,26 @@ class ProductIndexTest extends TestCase
 
         $response->assertOk()
             ->assertJsonStructure(['data', 'links', 'meta'])
-            ->assertExactJson([
-                ...$response->json(),
-                'data' => [[
-                    'id' => $product->id,
-                    'name' => 'Lampada',
-                    'description' => 'Da tavolo',
-                    'status' => 'inactive',
-                    'created_at' => '2026-09-01T10:00:00+00:00',
-                    'updated_at' => '2026-09-02T11:30:00+00:00',
-                ]],
-            ]);
+            ->assertJsonPath('data', [[
+                'id' => $product->id,
+                'name' => 'Lampada',
+                'description' => 'Da tavolo',
+                'status' => 'inactive',
+                'created_at' => '2026-09-01T10:00:00+00:00',
+                'updated_at' => '2026-09-02T11:30:00+00:00',
+            ]]);
     }
 
     public function test_index_lists_newest_products_first(): void
     {
-        $newer = Product::factory()->create(['created_at' => now()]);
-        $older = Product::factory()->create(['created_at' => now()->subDay()]);
+        $middle = Product::factory()->create(['created_at' => now()->subDay()]);
+        $oldest = Product::factory()->create(['created_at' => now()->subDays(2)]);
+        $newest = Product::factory()->create(['created_at' => now()]);
 
         $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
 
         $response->assertOk()
-            ->assertJsonPath('data.*.id', [$newer->id, $older->id]);
+            ->assertJsonPath('data.*.id', [$newest->id, $middle->id, $oldest->id]);
     }
 
     public function test_index_paginates_fifteen_products_by_default(): void

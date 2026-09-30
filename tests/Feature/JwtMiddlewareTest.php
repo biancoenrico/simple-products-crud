@@ -77,6 +77,19 @@ class JwtMiddlewareTest extends TestCase
         $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
 
         $response->assertInternalServerError()
-            ->assertJsonPath('message', 'Chiave pubblica JWT non trovata sul server.');
+            ->assertJsonPath('message', __('middleware.public_key_unavailable'));
+    }
+
+    public function test_malformed_public_key_is_a_server_error(): void
+    {
+        $malformedKeyPath = tempnam(sys_get_temp_dir(), 'jwt');
+        file_put_contents($malformedKeyPath, 'not a pem key');
+        config(['jwt.public_key_path' => $malformedKeyPath]);
+
+        $response = $this->withToken($this->validJwt())->getJson(route('products.index'));
+
+        unlink($malformedKeyPath);
+        $response->assertInternalServerError()
+            ->assertJsonPath('message', __('middleware.public_key_unavailable'));
     }
 }

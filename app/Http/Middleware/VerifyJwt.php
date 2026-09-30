@@ -29,10 +29,12 @@ class VerifyJwt
         }
 
         $publicKeyPath = config('jwt.public_key_path');
-        $publicKey = is_readable($publicKeyPath) ? file_get_contents($publicKeyPath) : false;
+        $publicKey = is_readable($publicKeyPath)
+            ? openssl_pkey_get_public(file_get_contents($publicKeyPath))
+            : false;
 
         if (! $publicKey) {
-            abort(500, __('middleware.public_key_missing'));
+            abort(500, __('middleware.public_key_unavailable'));
         }
 
         try {

@@ -76,19 +76,28 @@
 
     const $ = (id) => document.getElementById(id);
 
+    const productUrl = (id) => `${API_BASE}/${encodeURIComponent(id)}`;
+
     /**
-     * Chiama l'API col token della demo e mostra nel pannello la risposta così com'è, errori compresi.
+     * Chiama l'API col token della demo. Salvo showResponse falso, la risposta finisce nel pannello
+     * così com'è, errori compresi.
      */
     async function callApi(method, url, body, showResponse = true) {
-        const response = await fetch(url, {
-            method,
-            headers: {
-                Accept: 'application/json',
-                Authorization: `Bearer ${window.DEMO_TOKEN}`,
-                ...(body ? { 'Content-Type': 'application/json' } : {}),
-            },
-            body: body ? JSON.stringify(body) : undefined,
-        });
+        let response;
+        try {
+            response = await fetch(url, {
+                method,
+                headers: {
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${window.DEMO_TOKEN}`,
+                    ...(body ? { 'Content-Type': 'application/json' } : {}),
+                },
+                body: body ? JSON.stringify(body) : undefined,
+            });
+        } catch (error) {
+            showInPanel(`${method} ${url} → nessuna risposta`, false, error.message);
+            return { ok: false, json: null };
+        }
         const text = await response.text();
         let json = null;
         try { json = JSON.parse(text); } catch { /* corpo vuoto o non JSON: si mostra il testo */ }
@@ -97,13 +106,17 @@
             return { ok: response.ok, json };
         }
 
-        $('response').hidden = false;
-        $('response-summary').textContent = `${method} ${url} → ${response.status} ${response.statusText}`;
-        $('response-summary').classList.toggle('alert-success', response.ok);
-        $('response-summary').classList.toggle('alert-danger', !response.ok);
-        $('response-body').textContent = json ? JSON.stringify(json, null, 2) : text;
+        showInPanel(`${method} ${url} → ${response.status} ${response.statusText}`, response.ok, json ? JSON.stringify(json, null, 2) : text);
 
         return { ok: response.ok, json };
+    }
+
+    function showInPanel(summary, ok, body) {
+        $('response').hidden = false;
+        $('response-summary').textContent = summary;
+        $('response-summary').classList.toggle('alert-success', ok);
+        $('response-summary').classList.toggle('alert-danger', !ok);
+        $('response-body').textContent = body;
     }
 
     const dateFormat = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -112,12 +125,24 @@
     // I link del paginatore non riportano per-page: se ne prende solo il numero di pagina
     const pageOf = (link) => (link ? Number(new URL(link).searchParams.get('page')) : null);
 
-    // Dopo una scrittura la lista si ricarica senza coprire nel pannello la risposta della scrittura
+    /**
+     * Dopo una scrittura si chiama con showResponse falso, così il pannello tiene la risposta della scrittura.
+     */
     async function loadProducts(showResponse = true) {
         const url = `${API_BASE}?page=${state.page}&per-page=${$('per-page').value}`;
         const { ok, json } = await callApi('GET', url, undefined, showResponse);
         if (!ok) {
+            $('product-rows').replaceChildren();
+            $('previous-page').disabled = true;
+            $('next-page').disabled = true;
+            $('page-info').textContent = '';
             return;
+        }
+
+        // Cancellato l'ultimo prodotto dell'ultima pagina, quella pagina non esiste più
+        if (json.data.length === 0 && json.meta.current_page > json.meta.last_page) {
+            state.page = json.meta.last_page;
+            return loadProducts(showResponse);
         }
 
         $('product-rows').replaceChildren(...json.data.map((product) => {
@@ -173,7 +198,7 @@
     }
 
     function showProduct(id) {
-        return callApi('GET', `${API_BASE}/${encodeURIComponent(id)}`);
+        return callApi('GET', productUrl(id));
     }
 
     function startEditing(product) {
@@ -202,7 +227,7 @@
             status: $('product-status').value,
         };
         const { ok } = state.editingId
-            ? await callApi('PUT', `${API_BASE}/${state.editingId}`, body)
+            ? await callApi('PUT', productUrl(state.editingId), body)
             : await callApi('POST', API_BASE, body);
         if (ok) {
             resetForm();
@@ -214,7 +239,7 @@
         if (!confirm(`Cancellare «${product.name}»?`)) {
             return;
         }
-        const { ok } = await callApi('DELETE', `${API_BASE}/${product.id}`);
+        const { ok } = await callApi('DELETE', productUrl(product.id));
         if (ok) {
             if (state.editingId === product.id) {
                 resetForm();

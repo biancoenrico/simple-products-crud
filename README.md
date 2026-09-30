@@ -5,10 +5,10 @@ Microservizio REST per l'anagrafica dei prodotti, scritto in Laravel 13 su PHP 8
 ## Avvio rapido
 
 ```bash
-docker run --rm -p 8000:80 ghcr.io/<owner>/msp-prodotto
+docker run --rm -p 8000:80 enricobianco/simple-products-crud
 ```
 
-La pagina di prova, già autenticata, è su `http://localhost:8000/demo/`. Il documento OpenAPI si legge su `http://localhost:8000/docs/api-docs.json`.
+Al primo avvio l'immagine si scarica da Docker Hub, senza bisogno di account. La pagina di prova, già autenticata, è su `http://localhost:8000/demo/`. Il documento OpenAPI si legge su `http://localhost:8000/docs/api-docs.json`.
 
 ## Sviluppo locale
 

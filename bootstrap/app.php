@@ -1,10 +1,12 @@
 <?php
 
+use App\Exceptions\CustomException;
 use App\Http\Middleware\VerifyJwt;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,6 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontReport(CustomException::class);
+
+        $exceptions->render(fn (NotFoundHttpException $exception, Request $request) => $request->is('api/*')
+            ? response()->json(['message' => __('exceptions.resource_not_found')], 404)
+            : null);
+
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

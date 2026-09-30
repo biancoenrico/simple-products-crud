@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\V1;
 
+use App\DTO\ProductDto;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexProductRequest;
+use App\Http\Requests\StoreProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Services\Contracts\ProductService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ProductController extends Controller
@@ -17,5 +20,17 @@ class ProductController extends Controller
         return ProductResource::collection(
             $this->productService->paginate($request->integer('per_page', 15)),
         );
+    }
+
+    public function show(string $productId): ProductResource
+    {
+        return new ProductResource($this->productService->findById($productId));
+    }
+
+    public function store(StoreProductRequest $request): JsonResponse
+    {
+        return (new ProductResource($this->productService->create(ProductDto::from($request->validated()))))
+            ->response()
+            ->setStatusCode(201);
     }
 }

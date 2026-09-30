@@ -14,7 +14,7 @@ docker run --rm -p 8000:80 ghcr.io/<owner>/msp-prodotto
 
 Docker non rende raggiungibile un container dall'host finché non glielo si chiede, e `-p 8000:80` porta la porta 80 del container sulla 8000 del computer. Se la 8000 è già occupata se ne sceglie un'altra, per esempio `-p 9000:80`, e negli indirizzi qui sotto si usa quella. Il container si ferma con `Ctrl+C`, e `--rm` lo cancella all'uscita.
 
-La pagina di prova è su `http://localhost:8000/demo/`, già autenticata, e chiama le API vere per la lista paginata, la creazione, il dettaglio, la modifica e la cancellazione. Gli errori dell'API compaiono sulla pagina, quelli di validazione sotto il campo e gli altri in un avviso in cima. Il documento OpenAPI sta su `http://localhost:8000/docs/api-docs.json`.
+La pagina di prova è su `http://localhost:8000/demo/`, già autenticata, e chiama le API vere: in alto si filtra per nome e stato, sopra la tabella si crea un prodotto, e ogni riga ne apre il dettaglio, la modifica e la cancellazione. Gli errori di validazione compaiono sotto il campo, gli altri in un avviso in basso a destra. Il documento OpenAPI sta su `http://localhost:8000/docs/api-docs.json`.
 
 All'avvio il container prepara da solo `.env`, chiave dell'app e database SQLite, genera una coppia di chiavi RSA e firma un token valido un anno per la pagina. L'immagine non usa volumi, per cui i dati durano quanto il container e uno nuovo riparte con database vuoto e chiavi nuove.
 
@@ -71,7 +71,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/products
 | `PUT` | `/api/v1/products/{productId}` | JWT | `200` · `404` · `422` |
 | `DELETE` | `/api/v1/products/{productId}` | JWT | `204` · `404` |
 
-Un prodotto ha `id` (UUID), `name` (obbligatorio, massimo 255 caratteri), `description` (facoltativa) e `status` (`active` o `inactive`, `active` se non indicato). La lista accetta `per-page` da 1 a 100, 15 se non indicato, ed è ordinata dal prodotto creato più di recente. La cancellazione è logica: il prodotto cancellato non compare più e risponde `404`.
+Un prodotto ha `id` (UUID), `name` (obbligatorio, massimo 255 caratteri), `description` (facoltativa) e `status` (`active` o `inactive`, `active` se non indicato). La lista accetta `per-page` da 1 a 100, 15 se non indicato, ed è ordinata dal prodotto creato più di recente. Si filtra con `name`, che cerca il testo dentro il nome senza badare a maiuscole e minuscole (per le lettere senza accento), e con `status`; i link di paginazione conservano i filtri. La cancellazione è logica: il prodotto cancellato non compare più e risponde `404`.
 
 Le rotte dei prodotti restituiscono i dati sotto `data`. Sotto `/api` gli errori sono un JSON `{"message": "..."}` anche senza header `Accept`, e i `422` aggiungono `errors` per campo. Senza token, o con un token scaduto, firmato da un'altra chiave o senza un claim `data` valido, la risposta è `401`; un `productId` che non è un UUID risponde `404` prima ancora del controllo del token.
 
@@ -100,6 +100,6 @@ Il perimetro concordato è un'anagrafica di prodotti con nome, descrizione e sta
 - i permessi: `x-permissions` nel documento, il filtro dei dati per scope, le colonne di organizzazione, account e utente, gli header `permissions` e `source` di AG e la verifica di `X-BODY-SIGNATURE`. Il middleware salva comunque il contenuto del token in `config('user_data')`, per un futuro controllo dei permessi;
 - le librerie WA-common e wa-PermissionChecker;
 - il service locale, RabbitMQ e gli eventi;
-- i filtri di ricerca sulla lista, `PATCH`, `x-extra_loads`, `x-notification_types` e le notifiche;
+- `PATCH`, `x-extra_loads`, `x-notification_types` e le notifiche;
 - la registrazione in AG e il deploy;
 - la traduzione dei messaggi di validazione, che restano quelli inglesi di Laravel.

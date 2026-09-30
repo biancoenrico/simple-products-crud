@@ -5,6 +5,7 @@ ENV WEB_DOCUMENT_ROOT=/app/public
 ENV WEB_DOCUMENT_INDEX=index.php
 
 COPY docker/entrypoint.d/ /entrypoint.d/
+COPY docker/nginx/ /opt/docker/etc/nginx/
 COPY . /app
 
 WORKDIR /app

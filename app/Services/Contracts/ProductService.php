@@ -24,7 +24,7 @@ interface ProductService
     /**
      * @throws ProductException
      */
-    public function update(string $productId, ProductDto $dto): Product;
+    public function updateById(string $productId, ProductDto $dto): Product;
 
     /**
      * @throws ProductException

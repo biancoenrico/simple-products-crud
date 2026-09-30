@@ -38,7 +38,7 @@ class ProductController extends Controller
 
     public function update(UpdateProductRequest $request, string $productId): ProductResource
     {
-        return new ProductResource($this->productService->update($productId, ProductDto::from($request->validated())));
+        return new ProductResource($this->productService->updateById($productId, ProductDto::from($request->validated())));
     }
 
     public function destroy(string $productId): Response

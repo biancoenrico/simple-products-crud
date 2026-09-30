@@ -33,6 +33,9 @@ class ProductService implements ProductServiceContract
             ?? throw ProductException::productNotFound($productId);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     #[Override]
     public function create(ProductDto $dto): Product
     {

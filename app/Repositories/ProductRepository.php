@@ -22,18 +22,27 @@ class ProductRepository implements ProductRepositoryContract
             ->paginate($perPage);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     #[Override]
     public function findById(string $productId): ?Product
     {
         return Product::query()->find($productId);
     }
 
+    /**
+     * {@inheritdoc}
+     */
     #[Override]
     public function create(ProductDto $dto): Product
     {
         return Product::query()->create($dto->toArray());
     }
 
+    /**
+     * {@inheritdoc}
+     */
     #[Override]
     public function update(Product $product, ProductDto $dto): Product
     {
@@ -42,6 +51,9 @@ class ProductRepository implements ProductRepositoryContract
         return $product;
     }
 
+    /**
+     * {@inheritdoc}
+     */
     #[Override]
     public function delete(Product $product): void
     {

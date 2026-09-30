@@ -21,7 +21,6 @@ class ProductDestroyTest extends TestCase
         $response = $this->authenticated()->deleteJson(route('products.destroy', $product->id));
 
         $response->assertNoContent();
-        $this->assertSame('', $response->getContent());
         $this->assertSoftDeleted($product);
         $this->assertNotSoftDeleted($untouched);
     }

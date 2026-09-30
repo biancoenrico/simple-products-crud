@@ -13,6 +13,38 @@
     Controlla i log del container; senza token la pagina non chiama l'API.
 </p>
 
+<section id="product-editor" class="card mb-4" hidden>
+    <div class="card-body">
+        <h2 id="form-title" class="h5">Nuovo prodotto</h2>
+        <form id="product-form" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label" for="product-name">name</label>
+                <input id="product-name" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-5">
+                <label class="form-label" for="product-description">description</label>
+                <input id="product-description" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label" for="product-status">status</label>
+                <select id="product-status" class="form-select form-select-sm">
+                    <option>active</option>
+                    <option>inactive</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button id="save-product" class="btn btn-sm btn-success" type="submit">Crea</button>
+                <button id="cancel-edit" class="btn btn-sm btn-outline-secondary" type="button" hidden>Annulla</button>
+            </div>
+        </form>
+        <form id="detail-form" class="d-flex align-items-center gap-2 mt-3">
+            <label class="text-nowrap" for="detail-id">Dettaglio per id</label>
+            <input id="detail-id" class="form-control form-control-sm font-monospace">
+            <button class="btn btn-sm btn-primary" type="submit">Apri</button>
+        </form>
+    </div>
+</section>
+
 <section id="products" hidden>
     <h2 class="h5">Prodotti</h2>
     <div class="d-flex flex-wrap align-items-center gap-2 my-2">
@@ -25,7 +57,7 @@
     </div>
     <table class="table table-sm table-striped small">
         <thead class="table-primary">
-            <tr><th>id</th><th>name</th><th>description</th><th>status</th><th>created_at</th><th>updated_at</th></tr>
+            <tr><th>name</th><th>description</th><th>status</th><th>created_at</th><th>updated_at</th><th></th></tr>
         </thead>
         <tbody id="product-rows"></tbody>
     </table>
@@ -40,14 +72,14 @@
 <script src="config.js"></script>
 <script>
     const API_BASE = '/api/v1/products';
-    const state = { page: 1, previousPage: null, nextPage: null };
+    const state = { page: 1, previousPage: null, nextPage: null, editingId: null };
 
     const $ = (id) => document.getElementById(id);
 
     /**
      * Chiama l'API col token della demo e mostra nel pannello la risposta così com'è, errori compresi.
      */
-    async function callApi(method, url, body) {
+    async function callApi(method, url, body, showResponse = true) {
         const response = await fetch(url, {
             method,
             headers: {
@@ -61,6 +93,10 @@
         let json = null;
         try { json = JSON.parse(text); } catch { /* corpo vuoto o non JSON: si mostra il testo */ }
 
+        if (!showResponse) {
+            return { ok: response.ok, json };
+        }
+
         $('response').hidden = false;
         $('response-summary').textContent = `${method} ${url} → ${response.status} ${response.statusText}`;
         $('response-summary').classList.toggle('alert-success', response.ok);
@@ -70,30 +106,37 @@
         return { ok: response.ok, json };
     }
 
+    const dateFormat = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const formatDate = (value) => (value ? dateFormat.format(new Date(value)) : '');
+
     // I link del paginatore non riportano per-page: se ne prende solo il numero di pagina
     const pageOf = (link) => (link ? Number(new URL(link).searchParams.get('page')) : null);
 
-    async function loadProducts() {
+    // Dopo una scrittura la lista si ricarica senza coprire nel pannello la risposta della scrittura
+    async function loadProducts(showResponse = true) {
         const url = `${API_BASE}?page=${state.page}&per-page=${$('per-page').value}`;
-        const { ok, json } = await callApi('GET', url);
+        const { ok, json } = await callApi('GET', url, undefined, showResponse);
         if (!ok) {
             return;
         }
 
         $('product-rows').replaceChildren(...json.data.map((product) => {
             const row = document.createElement('tr');
-            for (const field of ['id', 'name', 'description', 'status', 'created_at', 'updated_at']) {
+            for (const field of ['name', 'description', 'status', 'created_at', 'updated_at']) {
                 const cell = document.createElement('td');
                 if (field === 'status') {
                     const badge = document.createElement('span');
                     badge.className = `badge ${product.status === 'active' ? 'text-bg-success' : 'text-bg-secondary'}`;
                     badge.textContent = product.status;
                     cell.append(badge);
+                } else if (field.endsWith('_at')) {
+                    cell.textContent = formatDate(product[field]);
                 } else {
                     cell.textContent = product[field] ?? '';
                 }
                 row.append(cell);
             }
+            row.append(actionsCell(product));
             return row;
         }));
         if (json.data.length === 0) {
@@ -107,10 +150,87 @@
         $('page-info').textContent = `Pagina ${json.meta.current_page} di ${json.meta.last_page} — ${json.meta.total} prodotti`;
     }
 
+    function actionButton(label, style, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn btn-sm ${style}`;
+        button.textContent = label;
+        button.addEventListener('click', onClick);
+        return button;
+    }
+
+    function actionsCell(product) {
+        const cell = document.createElement('td');
+        cell.className = 'text-nowrap';
+        cell.append(
+            actionButton('Dettaglio', 'btn-outline-primary', () => { $('detail-id').value = product.id; showProduct(product.id); }),
+            ' ',
+            actionButton('Modifica', 'btn-outline-warning', () => startEditing(product)),
+            ' ',
+            actionButton('Elimina', 'btn-outline-danger', () => deleteProduct(product)),
+        );
+        return cell;
+    }
+
+    function showProduct(id) {
+        return callApi('GET', `${API_BASE}/${encodeURIComponent(id)}`);
+    }
+
+    function startEditing(product) {
+        state.editingId = product.id;
+        $('product-name').value = product.name;
+        $('product-description').value = product.description ?? '';
+        $('product-status').value = product.status;
+        $('form-title').textContent = `Modifica «${product.name}»`;
+        $('save-product').textContent = 'Salva';
+        $('cancel-edit').hidden = false;
+    }
+
+    function resetForm() {
+        state.editingId = null;
+        $('product-form').reset();
+        $('form-title').textContent = 'Nuovo prodotto';
+        $('save-product').textContent = 'Crea';
+        $('cancel-edit').hidden = true;
+    }
+
+    async function saveProduct(event) {
+        event.preventDefault();
+        const body = {
+            name: $('product-name').value,
+            description: $('product-description').value,
+            status: $('product-status').value,
+        };
+        const { ok } = state.editingId
+            ? await callApi('PUT', `${API_BASE}/${state.editingId}`, body)
+            : await callApi('POST', API_BASE, body);
+        if (ok) {
+            resetForm();
+            await loadProducts(false);
+        }
+    }
+
+    async function deleteProduct(product) {
+        if (!confirm(`Cancellare «${product.name}»?`)) {
+            return;
+        }
+        const { ok } = await callApi('DELETE', `${API_BASE}/${product.id}`);
+        if (ok) {
+            if (state.editingId === product.id) {
+                resetForm();
+            }
+            await loadProducts(false);
+        }
+    }
+
     if (typeof window.DEMO_TOKEN !== 'string' || window.DEMO_TOKEN === '') {
         $('token-warning').hidden = false;
     } else {
         $('products').hidden = false;
+        $('product-editor').hidden = false;
+        $('product-form').addEventListener('submit', saveProduct);
+        $('cancel-edit').addEventListener('click', resetForm);
+        $('detail-form').addEventListener('submit', (event) => { event.preventDefault(); showProduct($('detail-id').value.trim()); });
         $('per-page').addEventListener('change', () => { state.page = 1; loadProducts(); });
         $('previous-page').addEventListener('click', () => { state.page = state.previousPage; loadProducts(); });
         $('next-page').addEventListener('click', () => { state.page = state.nextPage; loadProducts(); });

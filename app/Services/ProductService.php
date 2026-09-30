@@ -38,4 +38,22 @@ class ProductService implements ProductServiceContract
     {
         return $this->repository->create($dto);
     }
+
+    /**
+     * {@inheritdoc}
+     */
+    #[Override]
+    public function update(string $productId, ProductDto $dto): Product
+    {
+        return $this->repository->update($this->findById($productId), $dto);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    #[Override]
+    public function deleteById(string $productId): void
+    {
+        $this->repository->delete($this->findById($productId));
+    }
 }

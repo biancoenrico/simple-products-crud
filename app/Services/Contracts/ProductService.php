@@ -20,4 +20,14 @@ interface ProductService
     public function findById(string $productId): Product;
 
     public function create(ProductDto $dto): Product;
+
+    /**
+     * @throws ProductException
+     */
+    public function update(string $productId, ProductDto $dto): Product;
+
+    /**
+     * @throws ProductException
+     */
+    public function deleteById(string $productId): void;
 }

@@ -65,7 +65,7 @@ class ProductIndexTest extends TestCase
     {
         Product::factory()->count(3)->create();
 
-        $response = $this->authenticated()->getJson(route('products.index', ['per_page' => 2]));
+        $response = $this->authenticated()->getJson(route('products.index', ['per-page' => 2]));
 
         $response->assertOk()
             ->assertJsonCount(2, 'data')
@@ -88,14 +88,14 @@ class ProductIndexTest extends TestCase
     #[DataProvider('invalidPerPageValues')]
     public function test_index_rejects_invalid_per_page(mixed $perPage): void
     {
-        $response = $this->authenticated()->getJson(route('products.index', ['per_page' => $perPage]));
+        $response = $this->authenticated()->getJson(route('products.index', ['per-page' => $perPage]));
 
-        $response->assertUnprocessable()->assertJsonValidationErrors('per_page');
+        $response->assertUnprocessable()->assertJsonValidationErrors('per-page');
     }
 
     public function test_index_accepts_per_page_bounds(): void
     {
-        $this->authenticated()->getJson(route('products.index', ['per_page' => 1]))->assertOk();
-        $this->authenticated()->getJson(route('products.index', ['per_page' => 100]))->assertOk();
+        $this->authenticated()->getJson(route('products.index', ['per-page' => 1]))->assertOk()->assertJsonPath('meta.per_page', 1);
+        $this->authenticated()->getJson(route('products.index', ['per-page' => 100]))->assertOk()->assertJsonPath('meta.per_page', 100);
     }
 }

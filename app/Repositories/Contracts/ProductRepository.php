@@ -9,30 +9,33 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface ProductRepository
 {
     /**
-     * Restituisce una pagina di prodotti, dai più recenti. A parità di data di creazione
-     * ordina per id, così le pagine restano stabili.
-     *
+     * @param  int  $perPage
      * @return LengthAwarePaginator<int, Product>
      */
     public function paginate(int $perPage): LengthAwarePaginator;
 
     /**
-     * Cerca il prodotto per id; null se non esiste o è stato cancellato.
+     * @param  string  $productId
+     * @return Product|null
      */
     public function findById(string $productId): ?Product;
 
     /**
-     * Salva un nuovo prodotto con i dati del DTO.
+     * @param  ProductDto  $dto
+     * @return Product
      */
     public function create(ProductDto $dto): Product;
 
     /**
-     * Scrive i dati del DTO sul prodotto e restituisce la stessa istanza, già aggiornata.
+     * @param  Product  $product
+     * @param  ProductDto  $dto
+     * @return Product
      */
     public function update(Product $product, ProductDto $dto): Product;
 
     /**
-     * Fa la soft delete del prodotto.
+     * @param  Product  $product
+     * @return void
      */
     public function delete(Product $product): void;
 }

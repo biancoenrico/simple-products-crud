@@ -21,3 +21,16 @@
 /storage/api-docs
 /storage/logs/*.log
 /public/demo/config.js
+/tests
+/phpunit.xml
+/pint.json
+/vite.config.js
+/package.json
+/.npmrc
+/.editorconfig
+/.gitattributes
+/.gitignore
+/Dockerfile
+/.dockerignore
+/docker-compose.yml
+/README.md

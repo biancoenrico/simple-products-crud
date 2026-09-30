@@ -98,4 +98,98 @@ class ProductIndexTest extends TestCase
         $this->authenticated()->getJson(route('products.index', ['per-page' => 1]))->assertOk()->assertJsonPath('meta.per_page', 1);
         $this->authenticated()->getJson(route('products.index', ['per-page' => 100]))->assertOk()->assertJsonPath('meta.per_page', 100);
     }
+
+    public function test_index_filters_by_part_of_the_name(): void
+    {
+        $lamp = Product::factory()->create(['name' => 'Lampada da tavolo']);
+        Product::factory()->create(['name' => 'Sedia']);
+
+        $response = $this->authenticated()->getJson(route('products.index', ['name' => 'DA TAV']));
+
+        $response->assertOk()->assertJsonPath('data.*.id', [$lamp->id]);
+    }
+
+    /**
+     * @return array<string, array{string, string, string}>
+     */
+    public static function likeWildcardSearches(): array
+    {
+        return [
+            'percent sign' => ['100%', 'Maglia 100% cotone', 'Lotto 1000 pezzi'],
+            'underscore' => ['a_b', 'Codice a_b', 'Codice axb'],
+            'escape character' => ['!', 'Offerta!', 'Sconto 50%'],
+        ];
+    }
+
+    #[DataProvider('likeWildcardSearches')]
+    public function test_index_name_filter_treats_like_wildcards_as_plain_characters(string $search, string $matchingName, string $otherName): void
+    {
+        $matching = Product::factory()->create(['name' => $matchingName]);
+        Product::factory()->create(['name' => $otherName]);
+
+        $response = $this->authenticated()->getJson(route('products.index', ['name' => $search]));
+
+        $response->assertOk()->assertJsonPath('data.*.id', [$matching->id]);
+    }
+
+    public function test_index_filters_by_status(): void
+    {
+        Product::factory()->create();
+        $inactive = Product::factory()->inactive()->create();
+
+        $response = $this->authenticated()->getJson(route('products.index', ['status' => 'inactive']));
+
+        $response->assertOk()->assertJsonPath('data.*.id', [$inactive->id]);
+    }
+
+    public function test_index_applies_name_and_status_filters_together(): void
+    {
+        Product::factory()->create(['name' => 'Lampada']);
+        $inactiveLamp = Product::factory()->inactive()->create(['name' => 'Lampada']);
+        Product::factory()->inactive()->create(['name' => 'Sedia']);
+
+        $response = $this->authenticated()->getJson(route('products.index', ['name' => 'Lamp', 'status' => 'inactive']));
+
+        $response->assertOk()->assertJsonPath('data.*.id', [$inactiveLamp->id]);
+    }
+
+    public function test_index_ignores_empty_filters(): void
+    {
+        Product::factory()->create();
+        Product::factory()->inactive()->create();
+
+        $response = $this->authenticated()->getJson(route('products.index', ['name' => '', 'status' => '']));
+
+        $response->assertOk()->assertJsonPath('meta.total', 2);
+    }
+
+    public function test_index_pagination_links_keep_the_filters(): void
+    {
+        Product::factory()->count(2)->inactive()->create();
+
+        $response = $this->authenticated()->getJson(route('products.index', ['status' => 'inactive', 'per-page' => 1]));
+
+        $response->assertOk();
+        $this->assertStringContainsString('status=inactive', $response->json('links.next'));
+    }
+
+    /**
+     * @return array<string, array{string, mixed}>
+     */
+    public static function invalidFilterValues(): array
+    {
+        return [
+            'unknown status' => ['status', 'deleted'],
+            'name too long' => ['name', str_repeat('a', 256)],
+            'name not a string' => ['name', ['Lampada']],
+        ];
+    }
+
+    #[DataProvider('invalidFilterValues')]
+    public function test_index_rejects_invalid_filters(string $field, mixed $value): void
+    {
+        $response = $this->authenticated()->getJson(route('products.index', [$field => $value]));
+
+        $response->assertUnprocessable()->assertJsonValidationErrors($field);
+    }
 }

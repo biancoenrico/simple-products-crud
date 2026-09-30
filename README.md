@@ -13,7 +13,7 @@ docker pull ghcr.io/<owner>/msp-prodotto:latest
 docker run --rm -p 8000:80 ghcr.io/<owner>/msp-prodotto:latest
 ```
 
-La pagina di prova è su `http://localhost:8000/demo/`, già autenticata, e chiama le API vere per la lista paginata, la creazione, il dettaglio, la modifica e la cancellazione. Di ogni risposta mostra metodo, URL, status e JSON. Il documento OpenAPI sta su `http://localhost:8000/docs/api-docs.json`.
+La pagina di prova è su `http://localhost:8000/demo/`, già autenticata, e chiama le API vere per la lista paginata, la creazione, il dettaglio, la modifica e la cancellazione. Gli errori dell'API compaiono sulla pagina, quelli di validazione sotto il campo e gli altri in un avviso in cima. Il documento OpenAPI sta su `http://localhost:8000/docs/api-docs.json`.
 
 All'avvio il container prepara da solo `.env`, chiave dell'app e database SQLite, genera una coppia di chiavi RSA e firma un token valido un anno per la pagina. L'immagine non usa volumi, per cui i dati durano quanto il container e uno nuovo riparte con database vuoto e chiavi nuove.
 

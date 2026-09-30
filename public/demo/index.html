@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MSP — prova API prodotti</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
 </head>
 <body class="container py-3">
 
@@ -13,35 +14,50 @@
     Controlla i log del container; senza token la pagina non chiama l'API.
 </p>
 
+<div id="message" class="alert" role="alert" hidden></div>
+
 <section id="product-editor" class="card mb-4" hidden>
     <div class="card-body">
         <h2 id="form-title" class="h5">Nuovo prodotto</h2>
-        <form id="product-form" class="row g-2 align-items-end">
+        <form id="product-form" class="row g-2 align-items-start" novalidate>
             <div class="col-md-3">
-                <label class="form-label" for="product-name">name</label>
+                <label class="form-label" for="product-name">Nome</label>
                 <input id="product-name" class="form-control form-control-sm">
+                <div class="invalid-feedback" data-error-for="name"></div>
             </div>
             <div class="col-md-5">
-                <label class="form-label" for="product-description">description</label>
+                <label class="form-label" for="product-description">Descrizione</label>
                 <input id="product-description" class="form-control form-control-sm">
+                <div class="invalid-feedback" data-error-for="description"></div>
             </div>
             <div class="col-md-2">
-                <label class="form-label" for="product-status">status</label>
+                <label class="form-label" for="product-status">Stato</label>
                 <select id="product-status" class="form-select form-select-sm">
-                    <option>active</option>
-                    <option>inactive</option>
+                    <option value="active">Attivo</option>
+                    <option value="inactive">Inattivo</option>
                 </select>
+                <div class="invalid-feedback" data-error-for="status"></div>
             </div>
-            <div class="col-md-2 d-flex gap-2">
+            <div class="col-md-2 d-flex gap-2 align-self-end">
                 <button id="save-product" class="btn btn-sm btn-success" type="submit">Crea</button>
                 <button id="cancel-edit" class="btn btn-sm btn-outline-secondary" type="button" hidden>Annulla</button>
             </div>
         </form>
         <form id="detail-form" class="d-flex align-items-center gap-2 mt-3">
-            <label class="text-nowrap" for="detail-id">Dettaglio per id</label>
+            <label class="text-nowrap" for="detail-id">Dettaglio per ID</label>
             <input id="detail-id" class="form-control form-control-sm font-monospace">
             <button class="btn btn-sm btn-primary" type="submit">Apri</button>
         </form>
+    </div>
+</section>
+
+<section id="product-detail" class="card mb-4" hidden>
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+            <h2 class="h5">Dettaglio prodotto</h2>
+            <button id="close-detail" class="btn-close" type="button" aria-label="Chiudi"></button>
+        </div>
+        <dl id="detail-fields" class="row mb-0 small"></dl>
     </div>
 </section>
 
@@ -57,17 +73,12 @@
     </div>
     <table class="table table-sm table-striped small">
         <thead class="table-primary">
-            <tr><th>name</th><th>description</th><th>status</th><th>created_at</th><th>updated_at</th><th></th></tr>
+            <tr><th>Nome</th><th>Descrizione</th><th>Stato</th><th>Creato il</th><th>Aggiornato il</th><th></th></tr>
         </thead>
         <tbody id="product-rows"></tbody>
     </table>
 </section>
 
-<section id="response" hidden>
-    <h2 class="h5 mt-4">Ultima risposta</h2>
-    <div id="response-summary" class="alert font-monospace fw-bold py-2 mb-2"></div>
-    <pre id="response-body" class="bg-light border rounded p-2 small" style="max-height: 24rem"></pre>
-</section>
 
 <script src="config.js"></script>
 <script>
@@ -78,11 +89,13 @@
 
     const productUrl = (id) => `${API_BASE}/${encodeURIComponent(id)}`;
 
+    const STATUS_LABELS = { active: 'Attivo', inactive: 'Inattivo' };
+
     /**
-     * Chiama l'API col token della demo. Salvo showResponse falso, la risposta finisce nel pannello
-     * così com'è, errori compresi.
+     * Chiama l'API col token della demo. Un errore di validazione finisce sotto i campi del form,
+     * ogni altro errore nell'avviso in cima col messaggio dell'API.
      */
-    async function callApi(method, url, body, showResponse = true) {
+    async function callApi(method, url, body) {
         let response;
         try {
             response = await fetch(url, {
@@ -95,28 +108,47 @@
                 body: body ? JSON.stringify(body) : undefined,
             });
         } catch (error) {
-            showInPanel(`${method} ${url} → nessuna risposta`, false, error.message);
+            showMessage(`Server non raggiungibile: ${error.message}`, false);
             return { ok: false, json: null };
         }
         const text = await response.text();
         let json = null;
         try { json = JSON.parse(text); } catch { /* corpo vuoto o non JSON: si mostra il testo */ }
 
-        if (!showResponse) {
-            return { ok: response.ok, json };
+        if (!response.ok) {
+            showError(response, json, text);
         }
-
-        showInPanel(`${method} ${url} → ${response.status} ${response.statusText}`, response.ok, json ? JSON.stringify(json, null, 2) : text);
 
         return { ok: response.ok, json };
     }
 
-    function showInPanel(summary, ok, body) {
-        $('response').hidden = false;
-        $('response-summary').textContent = summary;
-        $('response-summary').classList.toggle('alert-success', ok);
-        $('response-summary').classList.toggle('alert-danger', !ok);
-        $('response-body').textContent = body;
+    function showMessage(text, ok) {
+        $('message').hidden = false;
+        $('message').textContent = text;
+        $('message').classList.toggle('alert-success', ok);
+        $('message').classList.toggle('alert-danger', !ok);
+    }
+
+    function clearFeedback() {
+        $('message').hidden = true;
+        document.querySelectorAll('.is-invalid').forEach((field) => field.classList.remove('is-invalid'));
+    }
+
+    function showError(response, json, text) {
+        const otherErrors = [];
+        for (const [field, messages] of Object.entries(json?.errors ?? {})) {
+            const feedback = document.querySelector(`[data-error-for="${field}"]`);
+            if (feedback) {
+                feedback.textContent = messages.join(' ');
+                feedback.previousElementSibling.classList.add('is-invalid');
+            } else {
+                otherErrors.push(...messages);
+            }
+        }
+        if (!json?.errors || otherErrors.length > 0) {
+            const detail = otherErrors.length > 0 ? otherErrors.join(' ') : (json?.message ?? text);
+            showMessage(`Errore ${response.status}: ${detail}`, false);
+        }
     }
 
     const dateFormat = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -125,12 +157,9 @@
     // I link del paginatore non riportano per-page: se ne prende solo il numero di pagina
     const pageOf = (link) => (link ? Number(new URL(link).searchParams.get('page')) : null);
 
-    /**
-     * Dopo una scrittura si chiama con showResponse falso, così il pannello tiene la risposta della scrittura.
-     */
-    async function loadProducts(showResponse = true) {
+    async function loadProducts() {
         const url = `${API_BASE}?page=${state.page}&per-page=${$('per-page').value}`;
-        const { ok, json } = await callApi('GET', url, undefined, showResponse);
+        const { ok, json } = await callApi('GET', url);
         if (!ok) {
             $('product-rows').replaceChildren();
             $('previous-page').disabled = true;
@@ -142,7 +171,7 @@
         // Cancellato l'ultimo prodotto dell'ultima pagina, quella pagina non esiste più
         if (json.data.length === 0 && json.meta.current_page > json.meta.last_page) {
             state.page = json.meta.last_page;
-            return loadProducts(showResponse);
+            return loadProducts();
         }
 
         $('product-rows').replaceChildren(...json.data.map((product) => {
@@ -152,7 +181,7 @@
                 if (field === 'status') {
                     const badge = document.createElement('span');
                     badge.className = `badge ${product.status === 'active' ? 'text-bg-success' : 'text-bg-secondary'}`;
-                    badge.textContent = product.status;
+                    badge.textContent = STATUS_LABELS[product.status] ?? product.status;
                     cell.append(badge);
                 } else if (field.endsWith('_at')) {
                     cell.textContent = formatDate(product[field]);
@@ -175,11 +204,13 @@
         $('page-info').textContent = `Pagina ${json.meta.current_page} di ${json.meta.last_page} — ${json.meta.total} prodotti`;
     }
 
-    function actionButton(label, style, onClick) {
+    function actionButton(label, icon, style, onClick) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `btn btn-sm ${style}`;
-        button.textContent = label;
+        button.title = label;
+        button.setAttribute('aria-label', label);
+        button.innerHTML = `<i class="bi ${icon}"></i>`;
         button.addEventListener('click', onClick);
         return button;
     }
@@ -188,20 +219,45 @@
         const cell = document.createElement('td');
         cell.className = 'text-nowrap';
         cell.append(
-            actionButton('Dettaglio', 'btn-outline-primary', () => { $('detail-id').value = product.id; showProduct(product.id); }),
+            actionButton('Dettaglio', 'bi-eye', 'btn-outline-primary', () => { $('detail-id').value = product.id; showProduct(product.id); }),
             ' ',
-            actionButton('Modifica', 'btn-outline-warning', () => startEditing(product)),
+            actionButton('Modifica', 'bi-pencil', 'btn-outline-warning', () => startEditing(product)),
             ' ',
-            actionButton('Elimina', 'btn-outline-danger', () => deleteProduct(product)),
+            actionButton('Elimina', 'bi-trash', 'btn-outline-danger', () => deleteProduct(product)),
         );
         return cell;
     }
 
-    function showProduct(id) {
-        return callApi('GET', productUrl(id));
+    async function showProduct(id) {
+        clearFeedback();
+        $('product-detail').hidden = true;
+        const { ok, json } = await callApi('GET', productUrl(id));
+        if (!ok) {
+            return;
+        }
+        const product = json.data;
+        const fields = [
+            ['ID', product.id],
+            ['Nome', product.name],
+            ['Descrizione', product.description ?? ''],
+            ['Stato', STATUS_LABELS[product.status] ?? product.status],
+            ['Creato il', formatDate(product.created_at)],
+            ['Aggiornato il', formatDate(product.updated_at)],
+        ];
+        $('detail-fields').replaceChildren(...fields.flatMap(([label, value]) => {
+            const term = document.createElement('dt');
+            term.className = 'col-sm-2';
+            term.textContent = label;
+            const description = document.createElement('dd');
+            description.className = 'col-sm-10';
+            description.textContent = value || '—';
+            return [term, description];
+        }));
+        $('product-detail').hidden = false;
     }
 
     function startEditing(product) {
+        clearFeedback();
         state.editingId = product.id;
         $('product-name').value = product.name;
         $('product-description').value = product.description ?? '';
@@ -212,6 +268,7 @@
     }
 
     function resetForm() {
+        clearFeedback();
         state.editingId = null;
         $('product-form').reset();
         $('form-title').textContent = 'Nuovo prodotto';
@@ -221,6 +278,8 @@
 
     async function saveProduct(event) {
         event.preventDefault();
+        clearFeedback();
+        const created = state.editingId === null;
         const body = {
             name: $('product-name').value,
             description: $('product-description').value,
@@ -231,7 +290,9 @@
             : await callApi('POST', API_BASE, body);
         if (ok) {
             resetForm();
-            await loadProducts(false);
+            $('product-detail').hidden = true;
+            showMessage(created ? 'Prodotto creato.' : 'Prodotto aggiornato.', true);
+            await loadProducts();
         }
     }
 
@@ -239,12 +300,15 @@
         if (!confirm(`Cancellare «${product.name}»?`)) {
             return;
         }
+        clearFeedback();
         const { ok } = await callApi('DELETE', productUrl(product.id));
         if (ok) {
             if (state.editingId === product.id) {
                 resetForm();
             }
-            await loadProducts(false);
+            $('product-detail').hidden = true;
+            showMessage('Prodotto eliminato.', true);
+            await loadProducts();
         }
     }
 
@@ -255,10 +319,11 @@
         $('product-editor').hidden = false;
         $('product-form').addEventListener('submit', saveProduct);
         $('cancel-edit').addEventListener('click', resetForm);
+        $('close-detail').addEventListener('click', () => { $('product-detail').hidden = true; });
         $('detail-form').addEventListener('submit', (event) => { event.preventDefault(); showProduct($('detail-id').value.trim()); });
-        $('per-page').addEventListener('change', () => { state.page = 1; loadProducts(); });
-        $('previous-page').addEventListener('click', () => { state.page = state.previousPage; loadProducts(); });
-        $('next-page').addEventListener('click', () => { state.page = state.nextPage; loadProducts(); });
+        $('per-page').addEventListener('change', () => { clearFeedback(); state.page = 1; loadProducts(); });
+        $('previous-page').addEventListener('click', () => { clearFeedback(); state.page = state.previousPage; loadProducts(); });
+        $('next-page').addEventListener('click', () => { clearFeedback(); state.page = state.nextPage; loadProducts(); });
         loadProducts();
     }
 </script>

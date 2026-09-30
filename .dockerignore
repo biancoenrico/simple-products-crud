@@ -6,6 +6,10 @@
 /.scratch
 /.claude
 /.idea
+/.codex
+/.cursor
+/CONTEXT.md
+/CONTEXT-MAP.md
 /CLAUDE.md
 /AGENTS.md
 /.mcp.json

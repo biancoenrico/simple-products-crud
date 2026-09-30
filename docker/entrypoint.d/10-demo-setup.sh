@@ -1,5 +1,5 @@
-# A ogni avvio del container prepara ambiente, database, una coppia di chiavi al posto di quella
-# di AG e il token che usa la pagina /demo/, saltando ciò che esiste già.
+# Setup d'avvio del container. Ogni passo salta ciò che esiste già, tranne il token per /demo/,
+# che si rigenera sempre.
 # L'immagine base lo carica con `source`, da root, prima di supervisord: i passi girano in un
 # subshell perché `set -e` non resti attivo nel suo entrypoint, e un errore ferma il container.
 (

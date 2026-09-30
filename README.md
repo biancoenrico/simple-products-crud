@@ -48,7 +48,7 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/products
 | `PUT` | `/api/v1/products/{productId}` | JWT | `200` · `404` · `422` |
 | `DELETE` | `/api/v1/products/{productId}` | JWT | `204` · `404` |
 
-Un prodotto ha `id` (UUID), `name` (obbligatorio, massimo 255 caratteri), `description` (facoltativa) e `status` (`active` o `inactive`, `active` se non indicato). La lista accetta `per_page` da 1 a 100, 15 se non indicato, ed è ordinata dal prodotto creato più di recente. La cancellazione è logica: il prodotto cancellato non compare più e risponde `404`.
+Un prodotto ha `id` (UUID), `name` (obbligatorio, massimo 255 caratteri), `description` (facoltativa) e `status` (`active` o `inactive`, `active` se non indicato). La lista accetta `per-page` da 1 a 100, 15 se non indicato, ed è ordinata dal prodotto creato più di recente. La cancellazione è logica: il prodotto cancellato non compare più e risponde `404`.
 
 Le rotte dei prodotti restituiscono i dati sotto `data`. Sotto `/api` gli errori sono un JSON `{"message": "..."}` anche senza header `Accept`, e i `422` aggiungono `errors` per campo. Senza token, o con un token scaduto, firmato da un'altra chiave o senza un claim `data` valido, la risposta è `401`; un `productId` che non è un UUID risponde `404` prima ancora del controllo del token.
 

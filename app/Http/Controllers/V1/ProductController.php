@@ -26,7 +26,7 @@ class ProductController extends Controller
         tags: ['Products'],
         parameters: [
             new OA\QueryParameter(name: 'page', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
-            new OA\QueryParameter(name: 'per_page', required: false, schema: new OA\Schema(type: 'integer', default: 15, maximum: 100, minimum: 1)),
+            new OA\QueryParameter(name: 'per-page', required: false, schema: new OA\Schema(type: 'integer', default: 15, maximum: 100, minimum: 1)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Pagina di prodotti, dal più recente', content: new OA\JsonContent(properties: [
@@ -41,7 +41,7 @@ class ProductController extends Controller
     public function index(IndexProductRequest $request): AnonymousResourceCollection
     {
         return ProductResource::collection(
-            $this->productService->paginate($request->integer('per_page', 15)),
+            $this->productService->paginate($request->integer('per-page', 15)),
         );
     }
 

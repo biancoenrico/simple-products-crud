@@ -13,7 +13,7 @@ class IndexProductRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'per_page' => ['sometimes', 'integer', 'between:1,100'],
+            'per-page' => ['sometimes', 'integer', 'between:1,100'],
         ];
     }
 }

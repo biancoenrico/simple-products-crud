@@ -3,9 +3,12 @@
 namespace App\Repositories;
 
 use App\DTO\ProductDto;
+use App\Filters\ByName;
+use App\Filters\ByStatus;
 use App\Models\Product;
 use App\Repositories\Contracts\ProductRepository as ProductRepositoryContract;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Pipeline;
 use Override;
 
 class ProductRepository implements ProductRepositoryContract
@@ -16,10 +19,16 @@ class ProductRepository implements ProductRepositoryContract
     #[Override]
     public function paginate(int $perPage): LengthAwarePaginator
     {
-        return Product::query()
+        return Pipeline::send(Product::query())
+            ->through([
+                ByName::class,
+                ByStatus::class,
+            ])
+            ->thenReturn()
             ->latest()
             ->latest('id')
-            ->paginate($perPage);
+            ->paginate($perPage)
+            ->withQueryString();
     }
 
     /**

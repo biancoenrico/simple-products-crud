@@ -89,11 +89,18 @@ class ProductStoreTest extends TestCase
             ->assertCreated();
     }
 
-    public function test_store_keeps_laravel_english_validation_messages(): void
+    public function test_store_returns_validation_messages_in_italian(): void
     {
         $this->authenticated()
             ->postJson(route('products.store'), [])
-            ->assertJsonValidationErrors(['name' => 'The name field is required.']);
+            ->assertJsonValidationErrors(['name' => 'Il campo nome è obbligatorio.']);
+    }
+
+    public function test_store_summarises_further_validation_errors_in_italian(): void
+    {
+        $this->authenticated()
+            ->postJson(route('products.store'), ['status' => 'archived'])
+            ->assertJsonPath('message', 'Il campo nome è obbligatorio. (e un altro errore)');
     }
 
     public function test_store_requires_bearer_token(): void

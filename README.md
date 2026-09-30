@@ -101,5 +101,4 @@ Il perimetro concordato è un'anagrafica di prodotti con nome, descrizione e sta
 - le librerie WA-common e wa-PermissionChecker;
 - il service locale, RabbitMQ e gli eventi;
 - `PATCH`, `x-extra_loads`, `x-notification_types` e le notifiche;
-- la registrazione in AG e il deploy;
-- la traduzione dei messaggi di validazione, che restano quelli inglesi di Laravel.
+- la registrazione in AG e il deploy.

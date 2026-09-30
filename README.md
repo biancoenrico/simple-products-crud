@@ -6,12 +6,13 @@ Laravel 13 su PHP 8.3, struttura Controller → Service → Repository con depen
 
 ## Provare con Docker
 
-L'immagine è pubblica, quindi si scarica senza credenziali:
+Basta Docker e un solo comando. L'immagine è pubblica, e al primo avvio `docker run` la scarica da sé senza chiedere credenziali:
 
 ```bash
-docker pull ghcr.io/<owner>/msp-prodotto:latest
-docker run --rm -p 8000:80 ghcr.io/<owner>/msp-prodotto:latest
+docker run --rm -p 8000:80 ghcr.io/<owner>/msp-prodotto
 ```
+
+Docker non rende raggiungibile un container dall'host finché non glielo si chiede, e `-p 8000:80` porta la porta 80 del container sulla 8000 del computer. Se la 8000 è già occupata se ne sceglie un'altra, per esempio `-p 9000:80`, e negli indirizzi qui sotto si usa quella. Il container si ferma con `Ctrl+C`, e `--rm` lo cancella all'uscita.
 
 La pagina di prova è su `http://localhost:8000/demo/`, già autenticata, e chiama le API vere per la lista paginata, la creazione, il dettaglio, la modifica e la cancellazione. Gli errori dell'API compaiono sulla pagina, quelli di validazione sotto il campo e gli altri in un avviso in cima. Il documento OpenAPI sta su `http://localhost:8000/docs/api-docs.json`.
 

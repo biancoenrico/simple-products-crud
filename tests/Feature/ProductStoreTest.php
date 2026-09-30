@@ -49,6 +49,14 @@ class ProductStoreTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $response->json('data.id'), 'status' => 'active']);
     }
 
+    public function test_store_treats_null_status_as_active(): void
+    {
+        $this->authenticated()
+            ->postJson(route('products.store'), ['name' => 'Lampada', 'status' => null])
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'active');
+    }
+
     /**
      * @return array<string, array{array<string, mixed>, string}>
      */

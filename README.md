@@ -1,58 +1,82 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# MSP Prodotto
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Microservizio operativo della piattaforma WEB-ATTIVO per l'anagrafica dei prodotti: un CRUD REST sotto `/api/v1/products`, protetto dal JWT RS256 che firma il gateway (AG), con il documento OpenAPI 3.0 che AG legge per registrarlo.
 
-## About Laravel
+Laravel 13 su PHP 8.3, struttura Controller → Service → Repository con dependency injection.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Avvio
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+Servono PHP 8.3 con le estensioni `openssl` e `pdo_sqlite`, e Composer.
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+composer install
+cp .env.example .env
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
+php artisan serve
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Il servizio risponde su `http://localhost:8000`. In sviluppo il database è SQLite; per usarne un altro si cambiano le variabili `DB_*` nel `.env`.
 
-## Contributing
+## La chiave pubblica di AG
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+AG firma i token con la sua chiave privata; il servizio li verifica con la chiave pubblica corrispondente, che va copiata dall'istanza AG in `storage/oauth-public.key`. Il file è escluso dal repository. Per tenerlo altrove si imposta `JWT_PUBLIC_KEY_PATH` nel `.env`.
 
-## Code of Conduct
+Se la chiave manca, una richiesta ai prodotti con un token risponde `500`.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Per provare il servizio senza un AG si genera una coppia di chiavi e si firma un token come farebbe AG, con i dati dell'utente in base64 nel claim `data`:
 
-## Security Vulnerabilities
+```bash
+openssl genrsa -out /tmp/ag-private.key 2048
+openssl rsa -in /tmp/ag-private.key -pubout -out storage/oauth-public.key
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+TOKEN=$(php -r 'require "vendor/autoload.php"; echo Firebase\JWT\JWT::encode(["exp" => time() + 3600, "data" => base64_encode("{}")], file_get_contents("/tmp/ag-private.key"), "RS256");')
 
-## License
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/api/v1/products
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Rotte
+
+| Metodo | Percorso | Autenticazione | Risposte |
+|---|---|---|---|
+| `GET` | `/api/health` | no | `200 {"status":"ok"}` |
+| `GET` | `/docs/api-docs.json` | no | `200` documento OpenAPI 3.0 |
+| `GET` | `/api/v1/products` | JWT | `200` lista paginata · `422` |
+| `POST` | `/api/v1/products` | JWT | `201` · `422` |
+| `GET` | `/api/v1/products/{productId}` | JWT | `200` · `404` |
+| `PUT` | `/api/v1/products/{productId}` | JWT | `200` · `404` · `422` |
+| `DELETE` | `/api/v1/products/{productId}` | JWT | `204` · `404` |
+
+Un prodotto ha `id` (UUID), `name` (obbligatorio, massimo 255 caratteri), `description` (facoltativa) e `status` (`active` o `inactive`, `active` se non indicato). La lista accetta `per_page` da 1 a 100, 15 se non indicato, ed è ordinata dal prodotto creato più di recente. La cancellazione è logica: il prodotto cancellato non compare più e risponde `404`.
+
+Le rotte dei prodotti restituiscono i dati sotto `data`. Sotto `/api` gli errori sono un JSON `{"message": "..."}` anche senza header `Accept`, e i `422` aggiungono `errors` per campo. Senza token, o con un token scaduto, firmato da un'altra chiave o senza un claim `data` valido, la risposta è `401`; un `productId` che non è un UUID risponde `404` prima ancora del controllo del token.
+
+## Documento OpenAPI
+
+Il documento si genera dagli attributi PHP 8 sui controller, sulla resource e sulla request:
+
+```bash
+php artisan l5-swagger:generate
+```
+
+Con `L5_SWAGGER_GENERATE_ALWAYS=true`, come nel `.env.example`, si rigenera a ogni richiesta a `/docs/api-docs.json`. In produzione il flag va lasciato spento e il comando si lancia al deploy.
+
+## Test
+
+```bash
+php artisan test
+```
+
+I test passano tutti dall'API HTTP, su SQLite in memoria. La suite genera una coppia RSA a ogni esecuzione e firma da sé i propri token, quindi non serve nessuna chiave.
+
+## Cosa è stato lasciato fuori
+
+Il perimetro concordato è un'anagrafica di prodotti con nome, descrizione e stato. Restano fuori:
+
+- i permessi: `x-permissions` nel documento, il filtro dei dati per scope, le colonne di organizzazione, account e utente, gli header `permissions` e `source` di AG e la verifica di `X-BODY-SIGNATURE`. Il middleware salva comunque il contenuto del token in `config('user_data')`, per un futuro controllo dei permessi;
+- le librerie WA-common e wa-PermissionChecker;
+- il service locale, RabbitMQ e gli eventi;
+- i filtri di ricerca sulla lista, `PATCH`, `x-extra_loads`, `x-notification_types` e le notifiche;
+- la registrazione in AG, il deploy e Docker;
+- la traduzione dei messaggi di validazione, che restano quelli inglesi di Laravel.

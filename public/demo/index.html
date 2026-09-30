@@ -1,0 +1,566 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prodotti — MSP</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
+<style>
+    body { background: var(--bs-tertiary-bg); }
+    .products-table td, .products-table th { vertical-align: middle; }
+    .products-table .description { max-width: 28rem; }
+    .products-table tbody tr[data-product-id] { cursor: pointer; }
+</style>
+</head>
+<body>
+
+<main class="container py-4">
+    <header class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+        <h1 class="h3 mb-0">Prodotti</h1>
+        <span class="text-body-secondary small">Anagrafica prodotti · ambiente di prova</span>
+    </header>
+
+    <div id="token-warning" class="alert alert-danger" role="alert" hidden>
+        <strong>Token non disponibile.</strong> Il file <code>config.js</code> non è stato generato all'avvio del container,
+        quindi la pagina non può chiamare l'API. Controlla i log del container.
+    </div>
+
+    <div id="app" hidden>
+        <form id="filters" class="card card-body shadow-sm mb-3" role="search">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-6 col-lg-5">
+                    <label class="form-label small fw-semibold" for="filter-name">Nome</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-body"><i class="bi bi-search" aria-hidden="true"></i></span>
+                        <input id="filter-name" class="form-control" type="search" maxlength="255" placeholder="Cerca per nome" autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-8 col-md-3 col-lg-2">
+                    <label class="form-label small fw-semibold" for="filter-status">Stato</label>
+                    <select id="filter-status" class="form-select">
+                        <option value="">Tutti</option>
+                        <option value="active">Attivo</option>
+                        <option value="inactive">Inattivo</option>
+                    </select>
+                </div>
+                <div class="col-4 col-md-3 col-lg-auto">
+                    <button id="reset-filters" class="btn btn-outline-secondary w-100" type="button">Azzera</button>
+                </div>
+            </div>
+        </form>
+
+        <section class="card shadow-sm" aria-labelledby="list-title">
+            <div class="card-header bg-body d-flex align-items-center justify-content-between gap-2 py-2">
+                <h2 id="list-title" class="h6 mb-0">
+                    Elenco <span id="total-count" class="text-body-secondary fw-normal"></span>
+                </h2>
+                <button id="new-product" class="btn btn-primary btn-sm" type="button">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> Nuovo prodotto
+                </button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover products-table mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nome</th>
+                            <th scope="col" class="d-none d-md-table-cell">Descrizione</th>
+                            <th scope="col">Stato</th>
+                            <th scope="col" class="d-none d-lg-table-cell">Creato il</th>
+                            <th scope="col" class="d-none d-sm-table-cell">Aggiornato il</th>
+                            <th scope="col" class="text-end"><span class="visually-hidden">Azioni</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="product-rows"></tbody>
+                </table>
+            </div>
+
+            <div class="card-footer bg-body d-flex flex-wrap align-items-center justify-content-between gap-2 py-2">
+                <div class="d-flex align-items-center gap-2 small">
+                    <label for="per-page" class="text-body-secondary text-nowrap">Righe per pagina</label>
+                    <select id="per-page" class="form-select form-select-sm w-auto">
+                        <option>10</option>
+                        <option selected>15</option>
+                        <option>25</option>
+                        <option>50</option>
+                        <option>100</option>
+                    </select>
+                </div>
+                <nav class="d-flex align-items-center gap-3" aria-label="Paginazione">
+                    <span id="page-range" class="small text-body-secondary" aria-live="polite"></span>
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item"><button id="previous-page" class="page-link" type="button" aria-label="Pagina precedente" disabled><i class="bi bi-chevron-left" aria-hidden="true"></i></button></li>
+                        <li class="page-item"><button id="next-page" class="page-link" type="button" aria-label="Pagina successiva" disabled><i class="bi bi-chevron-right" aria-hidden="true"></i></button></li>
+                    </ul>
+                </nav>
+            </div>
+        </section>
+    </div>
+</main>
+
+<div id="product-modal" class="modal fade" tabindex="-1" aria-labelledby="product-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form id="product-form" class="modal-content" novalidate>
+            <div class="modal-header">
+                <h2 id="product-modal-title" class="modal-title h5">Nuovo prodotto</h2>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <div class="modal-body">
+                <div id="form-error" class="alert alert-danger py-2 small" role="alert" hidden></div>
+                <div class="mb-3">
+                    <label class="form-label" for="product-name">Nome <span class="text-danger" aria-hidden="true">*</span></label>
+                    <input id="product-name" class="form-control" maxlength="255" required autocomplete="off">
+                    <div class="invalid-feedback" data-error-for="name"></div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="product-description">Descrizione</label>
+                    <textarea id="product-description" class="form-control" rows="3"></textarea>
+                    <div class="invalid-feedback" data-error-for="description"></div>
+                </div>
+                <div>
+                    <label class="form-label" for="product-status">Stato</label>
+                    <select id="product-status" class="form-select">
+                        <option value="active">Attivo</option>
+                        <option value="inactive">Inattivo</option>
+                    </select>
+                    <div class="invalid-feedback" data-error-for="status"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+                <button id="save-product" class="btn btn-primary" type="submit">
+                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" hidden></span>
+                    <span class="label">Crea prodotto</span>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="detail-modal" class="modal fade" tabindex="-1" aria-labelledby="detail-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="detail-modal-title" class="modal-title h5">Dettaglio prodotto</h2>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <div class="modal-body">
+                <dl id="detail-fields" class="row mb-0"></dl>
+            </div>
+            <div class="modal-footer">
+                <button id="detail-delete" class="btn btn-outline-danger me-auto" type="button"><i class="bi bi-trash" aria-hidden="true"></i> Elimina</button>
+                <button id="detail-edit" class="btn btn-primary" type="button"><i class="bi bi-pencil" aria-hidden="true"></i> Modifica</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="delete-modal" class="modal fade" tabindex="-1" aria-labelledby="delete-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="delete-modal-title" class="modal-title h5">Eliminare il prodotto?</h2>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">«<span id="delete-name" class="fw-semibold"></span>» non comparirà più nell'elenco.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+                <button id="confirm-delete" class="btn btn-danger" type="button">
+                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true" hidden></span>
+                    <span class="label">Elimina</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="toast" class="toast align-items-center border-0" role="status" aria-live="polite" aria-atomic="true">
+        <div class="d-flex">
+            <div id="toast-body" class="toast-body"></div>
+            <button class="btn-close btn-close-white me-2 m-auto" type="button" data-bs-dismiss="toast" aria-label="Chiudi"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script src="config.js"></script>
+<script>
+    const API_BASE = '/api/v1/products';
+    const STATUS_LABELS = { active: 'Attivo', inactive: 'Inattivo' };
+    const COLUMN_COUNT = 6;
+
+    const state = { page: 1, previousPage: null, nextPage: null, editingId: null, current: null, listRequest: 0 };
+
+    const $ = (id) => document.getElementById(id);
+    const productUrl = (id) => `${API_BASE}/${encodeURIComponent(id)}`;
+
+    const productModal = new bootstrap.Modal($('product-modal'));
+    const detailModal = new bootstrap.Modal($('detail-modal'));
+    const deleteModal = new bootstrap.Modal($('delete-modal'));
+    const toast = new bootstrap.Toast($('toast'));
+
+    const dateFormat = new Intl.DateTimeFormat('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const formatDate = (value) => (value ? dateFormat.format(new Date(value)) : '');
+
+    /**
+     * Chiama l'API col token della demo. Non lancia mai: un errore di rete diventa una risposta
+     * con status 0 e un messaggio da mostrare.
+     */
+    async function callApi(method, url, body) {
+        let response;
+        try {
+            response = await fetch(url, {
+                method,
+                headers: {
+                    Accept: 'application/json',
+                    Authorization: `Bearer ${window.DEMO_TOKEN}`,
+                    ...(body ? { 'Content-Type': 'application/json' } : {}),
+                },
+                body: body ? JSON.stringify(body) : undefined,
+            });
+        } catch {
+            return { ok: false, status: 0, json: { message: 'Server non raggiungibile.' } };
+        }
+        let json = null;
+        try { json = JSON.parse(await response.text()); } catch { /* 204 o corpo non JSON */ }
+
+        return { ok: response.ok, status: response.status, json };
+    }
+
+    const errorMessage = ({ status, json }) => json?.message ?? `Errore ${status}.`;
+
+    function showToast(text, variant = 'success') {
+        $('toast').className = `toast align-items-center border-0 text-bg-${variant}`;
+        $('toast-body').textContent = text;
+        toast.show();
+    }
+
+    function setBusy(button, busy) {
+        button.disabled = busy;
+        button.querySelector('.spinner-border').hidden = !busy;
+    }
+
+    function statusBadge(status) {
+        const badge = document.createElement('span');
+        badge.className = `badge rounded-pill ${status === 'active' ? 'text-bg-success' : 'text-bg-secondary'}`;
+        badge.textContent = STATUS_LABELS[status] ?? status;
+        return badge;
+    }
+
+    function listQuery() {
+        const params = new URLSearchParams({ page: state.page, 'per-page': $('per-page').value });
+        const name = $('filter-name').value.trim();
+        if (name) {
+            params.set('name', name);
+        }
+        if ($('filter-status').value) {
+            params.set('status', $('filter-status').value);
+        }
+        return params;
+    }
+
+    const filtersActive = () => $('filter-name').value.trim() !== '' || $('filter-status').value !== '';
+
+    function messageRow(content) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = COLUMN_COUNT;
+        cell.className = 'text-center text-body-secondary py-5';
+        cell.append(...content);
+        row.append(cell);
+        return row;
+    }
+
+    function skeletonRows() {
+        return Array.from({ length: 5 }, () => {
+            const row = document.createElement('tr');
+            row.className = 'placeholder-glow';
+            row.setAttribute('aria-hidden', 'true');
+            row.innerHTML = '<td><span class="placeholder col-8"></span></td>'
+                + '<td class="d-none d-md-table-cell"><span class="placeholder col-10"></span></td>'
+                + '<td><span class="placeholder col-6"></span></td>'
+                + '<td class="d-none d-lg-table-cell"><span class="placeholder col-9"></span></td>'
+                + '<td class="d-none d-sm-table-cell"><span class="placeholder col-9"></span></td>'
+                + '<td></td>';
+            return row;
+        });
+    }
+
+    function linkButton(text, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn btn-link btn-sm p-0 align-baseline';
+        button.textContent = text;
+        button.addEventListener('click', onClick);
+        return button;
+    }
+
+    function actionButton(label, icon, style, onClick) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `btn btn-sm ${style}`;
+        button.title = label;
+        button.setAttribute('aria-label', label);
+        button.innerHTML = `<i class="bi ${icon}" aria-hidden="true"></i>`;
+        button.addEventListener('click', (event) => { event.stopPropagation(); onClick(); });
+        return button;
+    }
+
+    function productRow(product) {
+        const row = document.createElement('tr');
+        row.dataset.productId = product.id;
+        row.addEventListener('click', () => showProduct(product.id));
+
+        const name = document.createElement('td');
+        name.className = 'fw-semibold';
+        name.textContent = product.name;
+
+        const description = document.createElement('td');
+        description.className = 'description d-none d-md-table-cell text-truncate text-body-secondary';
+        description.textContent = product.description ?? '';
+        description.title = product.description ?? '';
+
+        const status = document.createElement('td');
+        status.append(statusBadge(product.status));
+
+        const createdAt = document.createElement('td');
+        createdAt.className = 'd-none d-lg-table-cell text-nowrap small';
+        createdAt.textContent = formatDate(product.created_at);
+
+        const updatedAt = document.createElement('td');
+        updatedAt.className = 'd-none d-sm-table-cell text-nowrap small';
+        updatedAt.textContent = formatDate(product.updated_at);
+
+        const actions = document.createElement('td');
+        actions.className = 'text-end text-nowrap';
+        const group = document.createElement('div');
+        group.className = 'btn-group';
+        group.append(
+            actionButton(`Dettaglio di ${product.name}`, 'bi-eye', 'btn-outline-secondary', () => showProduct(product.id)),
+            actionButton(`Modifica ${product.name}`, 'bi-pencil', 'btn-outline-secondary', () => openEditor(product)),
+            actionButton(`Elimina ${product.name}`, 'bi-trash', 'btn-outline-danger', () => askDelete(product)),
+        );
+        actions.append(group);
+
+        row.append(name, description, status, createdAt, updatedAt, actions);
+        return row;
+    }
+
+    const pageOf = (link) => (link ? Number(new URL(link).searchParams.get('page')) : null);
+
+    function setPager(meta, links) {
+        state.previousPage = pageOf(links?.prev);
+        state.nextPage = pageOf(links?.next);
+        for (const [id, page] of [['previous-page', state.previousPage], ['next-page', state.nextPage]]) {
+            $(id).disabled = page === null;
+            $(id).parentElement.classList.toggle('disabled', page === null);
+        }
+        $('page-range').textContent = meta && meta.total > 0 ? `${meta.from}–${meta.to} di ${meta.total}` : '';
+        $('total-count').textContent = meta ? `(${meta.total})` : '';
+    }
+
+    /**
+     * Le risposte arrivate fuori ordine, per esempio mentre si scrive nel filtro, vengono scartate:
+     * vale solo l'ultima richiesta partita.
+     */
+    async function loadProducts() {
+        const request = ++state.listRequest;
+        const rows = $('product-rows');
+        rows.setAttribute('aria-busy', 'true');
+        if (!rows.querySelector('tr[data-product-id]')) {
+            rows.replaceChildren(...skeletonRows());
+        }
+
+        const result = await callApi('GET', `${API_BASE}?${listQuery()}`);
+        if (request !== state.listRequest) {
+            return;
+        }
+        rows.removeAttribute('aria-busy');
+
+        if (!result.ok) {
+            setPager(null, null);
+            rows.replaceChildren(messageRow([`Impossibile caricare l'elenco: ${errorMessage(result)} `, linkButton('Riprova', loadProducts)]));
+            return;
+        }
+
+        const { data, meta, links } = result.json;
+        // Eliminato l'ultimo prodotto dell'ultima pagina, quella pagina non esiste più
+        if (data.length === 0 && meta.current_page > 1 && meta.current_page > meta.last_page) {
+            state.page = meta.last_page;
+            return loadProducts();
+        }
+
+        setPager(meta, links);
+        if (data.length > 0) {
+            rows.replaceChildren(...data.map(productRow));
+        } else if (filtersActive()) {
+            rows.replaceChildren(messageRow(['Nessun prodotto corrisponde ai filtri. ', linkButton('Azzera i filtri', resetFilters)]));
+        } else {
+            rows.replaceChildren(messageRow(['Il catalogo è vuoto. ', linkButton('Crea il primo prodotto', () => openEditor(null))]));
+        }
+    }
+
+    let nameFilterTimer;
+
+    function reloadFromFirstPage() {
+        clearTimeout(nameFilterTimer);
+        state.page = 1;
+        loadProducts();
+    }
+
+    function resetFilters() {
+        $('filters').reset();
+        reloadFromFirstPage();
+    }
+
+    function clearFormErrors() {
+        $('form-error').hidden = true;
+        document.querySelectorAll('#product-form .is-invalid').forEach((field) => field.classList.remove('is-invalid'));
+    }
+
+    function showFormErrors(result) {
+        const unplaced = [];
+        for (const [field, messages] of Object.entries(result.json?.errors ?? {})) {
+            const feedback = document.querySelector(`[data-error-for="${field}"]`);
+            if (feedback) {
+                feedback.textContent = messages.join(' ');
+                feedback.previousElementSibling.classList.add('is-invalid');
+            } else {
+                unplaced.push(...messages);
+            }
+        }
+        if (!result.json?.errors || unplaced.length > 0) {
+            $('form-error').textContent = unplaced.length > 0 ? unplaced.join(' ') : errorMessage(result);
+            $('form-error').hidden = false;
+        }
+        document.querySelector('#product-form .is-invalid')?.focus();
+    }
+
+    function openEditor(product) {
+        state.editingId = product?.id ?? null;
+        clearFormErrors();
+        $('product-name').value = product?.name ?? '';
+        $('product-description').value = product?.description ?? '';
+        $('product-status').value = product?.status ?? 'active';
+        $('product-modal-title').textContent = product ? 'Modifica prodotto' : 'Nuovo prodotto';
+        $('save-product').querySelector('.label').textContent = product ? 'Salva modifiche' : 'Crea prodotto';
+        productModal.show();
+    }
+
+    async function saveProduct(event) {
+        event.preventDefault();
+        clearFormErrors();
+        const body = {
+            name: $('product-name').value.trim(),
+            description: $('product-description').value.trim() || null,
+            status: $('product-status').value,
+        };
+
+        setBusy($('save-product'), true);
+        const creating = state.editingId === null;
+        const result = creating
+            ? await callApi('POST', API_BASE, body)
+            : await callApi('PUT', productUrl(state.editingId), body);
+        setBusy($('save-product'), false);
+
+        if (!result.ok) {
+            showFormErrors(result);
+            return;
+        }
+        productModal.hide();
+        showToast(`«${result.json.data.name}» ${creating ? 'creato' : 'aggiornato'}.`);
+        if (creating) {
+            state.page = 1;
+        }
+        loadProducts();
+    }
+
+    async function showProduct(id) {
+        const result = await callApi('GET', productUrl(id));
+        if (!result.ok) {
+            showToast(errorMessage(result), 'danger');
+            loadProducts();
+            return;
+        }
+        const product = result.json.data;
+        state.current = product;
+
+        const fields = [
+            ['Nome', product.name],
+            ['Descrizione', product.description],
+            ['Stato', statusBadge(product.status)],
+            ['Creato il', formatDate(product.created_at)],
+            ['Aggiornato il', formatDate(product.updated_at)],
+            ['ID', product.id],
+        ];
+        $('detail-fields').replaceChildren(...fields.flatMap(([label, value]) => {
+            const term = document.createElement('dt');
+            term.className = 'col-sm-4 fw-normal text-body-secondary';
+            term.textContent = label;
+            const description = document.createElement('dd');
+            description.className = 'col-sm-8';
+            if (value instanceof Node) {
+                description.append(value);
+            } else {
+                description.textContent = value || '—';
+            }
+            if (label === 'ID') {
+                description.classList.add('font-monospace', 'small', 'text-break', 'mb-0');
+            }
+            return [term, description];
+        }));
+        detailModal.show();
+    }
+
+    function askDelete(product) {
+        state.current = product;
+        $('delete-name').textContent = product.name;
+        deleteModal.show();
+    }
+
+    async function deleteProduct() {
+        const product = state.current;
+        setBusy($('confirm-delete'), true);
+        const result = await callApi('DELETE', productUrl(product.id));
+        setBusy($('confirm-delete'), false);
+        deleteModal.hide();
+
+        showToast(result.ok ? `«${product.name}» eliminato.` : errorMessage(result), result.ok ? 'success' : 'danger');
+        loadProducts();
+    }
+
+    // Dal dettaglio si passa a un altro modal solo a chiusura finita, altrimenti Bootstrap lascia il backdrop
+    function leaveDetailFor(open) {
+        $('detail-modal').addEventListener('hidden.bs.modal', open, { once: true });
+        detailModal.hide();
+    }
+
+    if (typeof window.DEMO_TOKEN !== 'string' || window.DEMO_TOKEN === '') {
+        $('token-warning').hidden = false;
+    } else {
+        $('app').hidden = false;
+        $('filters').addEventListener('submit', (event) => { event.preventDefault(); reloadFromFirstPage(); });
+        $('filter-name').addEventListener('input', () => {
+            clearTimeout(nameFilterTimer);
+            nameFilterTimer = setTimeout(reloadFromFirstPage, 300);
+        });
+        $('filter-status').addEventListener('change', reloadFromFirstPage);
+        $('reset-filters').addEventListener('click', resetFilters);
+        $('per-page').addEventListener('change', reloadFromFirstPage);
+        $('previous-page').addEventListener('click', () => { state.page = state.previousPage; loadProducts(); });
+        $('next-page').addEventListener('click', () => { state.page = state.nextPage; loadProducts(); });
+        $('new-product').addEventListener('click', () => openEditor(null));
+        $('product-form').addEventListener('submit', saveProduct);
+        $('product-modal').addEventListener('shown.bs.modal', () => $('product-name').focus());
+        $('detail-edit').addEventListener('click', () => leaveDetailFor(() => openEditor(state.current)));
+        $('detail-delete').addEventListener('click', () => leaveDetailFor(() => askDelete(state.current)));
+        $('confirm-delete').addEventListener('click', deleteProduct);
+        loadProducts();
+    }
+</script>
+</body>
+</html>

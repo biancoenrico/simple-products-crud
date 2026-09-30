@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\V1;
 
 use App\DTO\ProductDto;
+use App\Enums\ProductStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\IndexProductRequest;
 use App\Http\Requests\StoreProductRequest;
@@ -27,6 +28,8 @@ class ProductController extends Controller
         parameters: [
             new OA\QueryParameter(name: 'page', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
             new OA\QueryParameter(name: 'per-page', required: false, schema: new OA\Schema(type: 'integer', default: 15, maximum: 100, minimum: 1)),
+            new OA\QueryParameter(name: 'name', description: 'Parte del nome; maiuscole e minuscole si equivalgono per le lettere senza accento', required: false, schema: new OA\Schema(type: 'string', maxLength: 255)),
+            new OA\QueryParameter(name: 'status', description: 'Solo i prodotti con questo stato', required: false, schema: new OA\Schema(type: 'string', enum: ProductStatus::class)),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Pagina di prodotti, dal più recente', content: new OA\JsonContent(properties: [

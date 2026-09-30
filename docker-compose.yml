@@ -1,0 +1,10 @@
+services:
+    msp-product:
+        container_name: msp-product
+        build:
+            context: .
+            dockerfile: Dockerfile
+        volumes:
+            - .:/app
+        ports:
+            - 8000:80

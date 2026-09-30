@@ -22,18 +22,12 @@ class ProductRepository implements ProductRepositoryContract
             ->paginate($perPage);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     #[Override]
     public function findById(string $productId): ?Product
     {
         return Product::query()->find($productId);
     }
 
-    /**
-     * {@inheritdoc}
-     */
     #[Override]
     public function create(ProductDto $dto): Product
     {

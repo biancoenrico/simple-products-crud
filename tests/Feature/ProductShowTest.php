@@ -54,7 +54,7 @@ class ProductShowTest extends TestCase
         $response = $this->authenticated()->getJson(route('products.show', 'not-a-uuid'));
 
         $response->assertNotFound()
-            ->assertExactJson(['message' => 'Risorsa non trovata.']);
+            ->assertJsonPath('message', 'Risorsa non trovata.');
     }
 
     public function test_show_missing_product_is_not_reported(): void

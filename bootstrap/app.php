@@ -21,9 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontReport(CustomException::class);
 
-        $exceptions->render(fn (NotFoundHttpException $exception, Request $request) => $request->is('api/*')
-            ? response()->json(['message' => __('exceptions.resource_not_found')], 404)
-            : null);
+        $exceptions->map(fn (NotFoundHttpException $exception) => new NotFoundHttpException(
+            __('exceptions.resource_not_found'),
+            $exception,
+        ));
 
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
